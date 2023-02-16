@@ -7,10 +7,13 @@ import pandas as pd  # 导入pandas库
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/PET/AD'
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/PET/CN'
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/PET/MCI'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/PET/AD'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/PET/CN'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/PET/MCI'
 path_origin = ''
-# path_save = '/Users/changxinge/新下载的数据位置/multi_model/PET/origin_pet_data/AD'
-# path_save = '/Users/changxinge/新下载的数据位置/multi_model/PET/origin_pet_data/CN'
-# path_save = '/Users/changxinge/新下载的数据位置/multi_model/PET/origin_pet_data/MCI'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/PET/acpc_data/AD'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/PET/acpc_data/CN'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/PET/acpc_data/MCI'
 path_save = ''
 
 # path_list = os.listdir(path_origin)

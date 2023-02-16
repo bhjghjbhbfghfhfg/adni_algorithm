@@ -3,10 +3,10 @@ import shutil
 import pandas as pd  # 导入pandas库
 
 # 这个函数的目的就是从MRI和PET中找出相同病人的两种图片信息
-mri_path = '/Users/changxinge/新下载的数据位置/multi_model/ready_mri_data/CN/'
-pet_path = '/Users/changxinge/新下载的数据位置/multi_model/ready_pet_data/CN/'
+mri_path = '/Users/changxinge/Desktop/最晚的病人图像/ready_mri_data/MCI/'
+pet_path = '/Users/changxinge/Desktop/最晚的病人图像/ready_pet_data/MCI/'
 
-save_path = '/Users/changxinge/新下载的数据位置/multi_model/multi_data/CN/'
+save_path = '/Users/changxinge/Desktop/最晚的病人图像/multi_data_later/MCI/'
 
 def getAllFiles(**kwargs):
     childFiles_mri = os.listdir(mri_path)

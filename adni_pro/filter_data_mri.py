@@ -7,10 +7,16 @@ import pandas as pd  # 导入pandas库
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/MRI/AD'
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/MRI/CN'
 # path_origin = '/Users/changxinge/新下载的数据位置/multi_model/MRI/MCI'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/MRI/AD'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/MRI/CN'
+# path_origin = '/Users/changxinge/Desktop/最晚的病人图像/MRI/MCI'
 path_origin = ''
 # path_save = '/Users/changxinge/新下载的数据位置/multi_model/MRI/origin_mri_data/AD'
 # path_save = '/Users/changxinge/新下载的数据位置/multi_model/MRI/origin_mri_data/CN'
 # path_save = '/Users/changxinge/新下载的数据位置/multi_model/MRI/origin_mri_data/MCI'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/MRI/origin_data/AD'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/MRI/origin_data/CN'
+# path_save = '/Users/changxinge/Desktop/最晚的病人图像/MRI/origin_data/MCI'
 path_save = ''
 
 # path_list = os.listdir(path_origin)

@@ -152,18 +152,19 @@ def val_model(epoch, val_data, ResNet_3D, log_best, state):
                     all_features_mri = torch.cat((all_features_mri, output_mri), dim=0)
                     all_features_pet = torch.cat((all_features_pet, output_pet), dim=0)
 
-                    for i in range(get_args_multi().batch_size):
-                        multi = []
-                        mri = []
-                        pet = []
-                        multi.append(str(4 * index + i) + 'multi')
-                        mri.append(str(4 * index + i) + 'mri')
-                        pet.append(str(4 * index + i) + 'pet')
-                        # import pdb; pdb.set_trace()
-                        all_name = torch.cat((all_name, multi), dim=0)
-                        all_name_mri = torch.cat((all_name_mri, mri), dim=0)
-                        all_name_pet = torch.cat((all_name_pet, pet), dim=0)
-                    index = index + 1
+                    # for i in range(get_args_multi().batch_size):
+                    #     multi = []
+                    #     mri = []
+                    #     pet = []
+                    #     multi.append(str(4 * index + i) + 'multi')
+                    #     mri.append(str(4 * index + i) + 'mri')
+                    #     pet.append(str(4 * index + i) + 'pet')
+                    #     import pdb; pdb.set_trace()
+                    #
+                    #     all_name = torch.cat((all_name, multi), dim=0)
+                    #     all_name_mri = torch.cat((all_name_mri, mri), dim=0)
+                    #     all_name_pet = torch.cat((all_name_pet, pet), dim=0)
+                    # index = index + 1
 
             if state == 0:
                 loss_mri = F.cross_entropy(output_mri, labels)
@@ -209,11 +210,11 @@ def val_model(epoch, val_data, ResNet_3D, log_best, state):
             correct += (predicted == labels).sum().item()
 
     # 画图embedding
-    if epoch == -1:
-        if get_args_multi().state == 2:
-            writer.add_embedding(all_features, all_name, all_labels)
-            writer.add_embedding(all_features_mri, all_name_mri, all_labels)
-            writer.add_embedding(all_features_pet, all_name_pet, all_labels)
+    # if epoch == -1:
+    #     if get_args_multi().state == 2:
+    #         writer.add_embedding(all_features, all_name, all_labels)
+    #         writer.add_embedding(all_features_mri, all_name_mri, all_labels)
+    #         writer.add_embedding(all_features_pet, all_name_pet, all_labels)
 
     mean_loss = total_loss / n_batches
     TN, FP, FN, TP = confusion_matrix(true_label, data_pre).ravel()
@@ -305,8 +306,8 @@ if __name__ == '__main__':
     # np.random.seed(SEED) # 如果 SEED 相同，每次生成的随机数相同
     # torch.manual_seed(SEED)
     # torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     writer = SummaryWriter("log/" + "two_class" + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
 
@@ -319,6 +320,7 @@ if __name__ == '__main__':
     # ResNet_3D_res2 = vgg_3d.MyNet().cuda()
     # 这里使用resnet10作为网络
     ResNet_3D_res1 = get_net('ResNet10').cuda()
+    # import ipdb;ipdb.set_trace()
     ResNet_3D_res2 = get_net('ResNet10').cuda()
     # 略显误导，但是方便后续修改，ResNet_3D 这个是融合后的模型
     # 这个是特征融合
@@ -337,6 +339,12 @@ if __name__ == '__main__':
         # ResNet_3D.load_state_dict(torch.load('./model/3DResNet.pt'))
     else:
         print('**** no load model for train')
+
+    # grad_cam target_layers
+    target_layers = [ResNet_3D_res1.dropout, ResNet_3D_res2.dropout]
+    # target_category
+    target_category = 1  # ad
+
     train_best_loss = 10000
     train_best_acc = 0
     val_best_acc = 0
@@ -366,54 +374,54 @@ if __name__ == '__main__':
     print(sum([np.prod(p.shape) for p in ResNet_3D.parameters()]))
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda1)
 
-    for epoch in range(1, args.nepoch + 1):
-        # 训练模型
-        fo = open("test.txt", "a")
-        log_best = open('log_best.txt', 'a')
-
-        train_loss, train_correct, len_train, LEARNING_RATE = train_epoch(epoch, ResNet_3D, train_data, fo, optimizer, scheduler, state=args.state)
-        # 打印当前训练损失、最小损失和准确率
-        if train_loss < train_best_loss:
-            train_best_loss = train_loss
-        train_acc = 100. * train_correct / len_train
-        if train_acc > train_best_acc:
-            max_acc = train_acc
-        writer.add_scalar("train loss", train_loss, epoch)
-        writer.add_scalar("train acc", train_acc, epoch)
-        print('current loss: ', train_loss, 'the best loss: ', train_best_loss)
-        print(f'train_correct/train_data: {train_correct}/{len_train} accuracy: {train_acc:.2f}%')
-
-        # 模型用于验证集并将评价指标写入txt
-        ACC, SEN, SPE, AUC, test_loss = val_model(epoch, val_data, ResNet_3D, log_best, state=args.state)
-        if ACC > val_best_acc:
-            val_best_acc = ACC
-            t_SEN = SEN
-            t_SPE = SPE
-            t_AUC = AUC
-            # 保存模型
-            print('model saved...')
-            torch.save(ResNet_3D.state_dict(), './model/3DResNet.pt')
-        log_best.write('The best result:\n')
-        log_best.write('ACC:  ' + str(val_best_acc) + '  SEN:  ' + str(t_SEN) + '  SPE:  ' + str(
-            t_SPE) + '  AUC:  ' + str(t_AUC) + '\n\n')
-
-        writer.add_scalar("val loss", test_loss, epoch)
-        writer.add_scalar("val acc", ACC, epoch)
-        print(f'The train acc of this epoch: {train_acc:.2f}%')
-        print(f'The best val acc: {val_best_acc:.2f}% \n')
-        fo.write('train_acc: '+str(train_acc)+' The current total loss: '+str(train_loss)+' The best loss: '+str(train_best_loss)+'\n\n')
-
-        # 保存训练结果用于画图
-        train_loss_all.append(train_loss)
-        train_acc_all.append(train_acc)
-        test_loss_all.append(test_loss)
-        test_acc_all.append(ACC)
-        LEARNING_RATE_all.append(LEARNING_RATE)
-
-        del train_loss, train_correct, len_train, train_acc
-        gc.collect()
-        fo.close()
-        log_best.close()
+    # for epoch in range(1, args.nepoch + 1):
+    #     # 训练模型
+    #     fo = open("test.txt", "a")
+    #     log_best = open('log_best.txt', 'a')
+    #
+    #     train_loss, train_correct, len_train, LEARNING_RATE = train_epoch(epoch, ResNet_3D, train_data, fo, optimizer, scheduler, state=args.state)
+    #     # 打印当前训练损失、最小损失和准确率
+    #     if train_loss < train_best_loss:
+    #         train_best_loss = train_loss
+    #     train_acc = 100. * train_correct / len_train
+    #     if train_acc > train_best_acc:
+    #         max_acc = train_acc
+    #     writer.add_scalar("train loss", train_loss, epoch)
+    #     writer.add_scalar("train acc", train_acc, epoch)
+    #     print('current loss: ', train_loss, 'the best loss: ', train_best_loss)
+    #     print(f'train_correct/train_data: {train_correct}/{len_train} accuracy: {train_acc:.2f}%')
+    #
+    #     # 模型用于验证集并将评价指标写入txt
+    #     ACC, SEN, SPE, AUC, test_loss = val_model(epoch, val_data, ResNet_3D, log_best, state=args.state)
+    #     if ACC > val_best_acc:
+    #         val_best_acc = ACC
+    #         t_SEN = SEN
+    #         t_SPE = SPE
+    #         t_AUC = AUC
+    #         # 保存模型
+    #         print('model saved...')
+    #         torch.save(ResNet_3D.state_dict(), './model/3DResNet.pt')
+    #     log_best.write('The best result:\n')
+    #     log_best.write('ACC:  ' + str(val_best_acc) + ' SEN:  ' + str(t_SEN) + '  SPE:  ' + str(
+    #         t_SPE) + '  AUC:  ' + str(t_AUC) + '\n\n')
+    #
+    #     writer.add_scalar("val loss", test_loss, epoch)
+    #     writer.add_scalar("val acc", ACC, epoch)
+    #     print(f'The train acc of this epoch: {train_acc:.2f}%')
+    #     print(f'The best val acc: {val_best_acc:.2f}% \n')
+    #     fo.write('train_acc: '+str(train_acc)+' The current total loss: '+str(train_loss)+' The best loss: '+str(train_best_loss)+'\n\n')
+    #
+    #     # 保存训练结果用于画图
+    #     train_loss_all.append(train_loss)
+    #     train_acc_all.append(train_acc)
+    #     test_loss_all.append(test_loss)
+    #     test_acc_all.append(ACC)
+    #     LEARNING_RATE_all.append(LEARNING_RATE)
+    #
+    #     del train_loss, train_correct, len_train, train_acc
+    #     gc.collect()
+    #     fo.close()
+    #     log_best.close()
 
     # 将模型用于测试集
     ResNet_3D.load_state_dict(torch.load('./model/3DResNet.pt'))

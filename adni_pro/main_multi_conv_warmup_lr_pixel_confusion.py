@@ -53,6 +53,8 @@ def train_epoch(epoch, ResNet_3D, train_data, fo, optimizer, scheduler):
     for (data1, data2, label) in tqdm(train_data, total=n_batches):
 
         data1, data2, label = data1.cuda(), data2.cuda(), label.cuda()
+        import ipdb;
+        ipdb.set_trace()
         # 这里的data可以自定义取
         # 这里获得的结果是未进行归一化之前的概率，但是进行softmax之前必须要进行归一化。而Entropy里面自带归一化操作。
         output = ResNet_3D(data1, data2)
@@ -185,18 +187,18 @@ def test_model(test_data, ResNet_3D):
 
 
 if __name__ == '__main__':
-    model_save_path = './model/3DResNet_conv.pt'
     args = get_args_multi()
+    model_save_path = './model/3DResNet_conv' + args.gpu + '.pt'
     print(vars(args))
     # SEED = args.seed
     # np.random.seed(SEED) # 如果 SEED 相同，每次生成的随机数相同
     # torch.manual_seed(SEED)
     # torch.cuda.manual_seed_all(SEED)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 
-    writer = SummaryWriter("log/" + "two_class_conv4d" + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+    writer = SummaryWriter("log/" + "two_class_conv4d" + time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()) + str(args.lr))
 
     train_data = load_data_multi(args, args.train_root_path, args.AD_dir, args.CN_dir, train=True)
     val_data = load_data_multi(args, args.val_root_path, args.AD_dir, args.CN_dir)
@@ -287,8 +289,12 @@ if __name__ == '__main__':
 
     # 将模型用于测试集
     ResNet_3D.load_state_dict(torch.load(model_save_path))
-    test_model(test_data, ResNet_3D)
+    test_ACC, test_SEN, test_SPE, test_AUC = test_model(test_data, ResNet_3D)
 
+    writer.add_scalar("test_ACC", test_ACC, 1)
+    writer.add_scalar("test_SEN", test_SEN, 1)
+    writer.add_scalar("test_SPE", test_SPE, 1)
+    writer.add_scalar("test_AUC", test_AUC, 1)
     time_use = time.time() - since
     print("Train and Test complete in {:.0f}m {:.0f}s".format(time_use // 60, time_use % 60))
 

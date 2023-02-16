@@ -274,24 +274,31 @@ class Conv4d(nn.Module):
            stride: int = 1, padding: int = 0, padding_mode: str = "zeros",
            bias: bool = True, groups: int = 1, dilation: int = 1):
         super(Conv4d, self).__init__()
+
         if isinstance(stride, tuple):
             stride = stride[1:]
         else:
             stride = stride
+
         if isinstance(kernel_size, tuple):
             kernel_size = kernel_size[1:]
         else:
             kernel_size = kernel_size
+
         if isinstance(padding, tuple):
             padding = padding[1:]
         else:
             padding = padding
+
         self.conv_mri = nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size,
                                   stride=stride, padding=padding, bias=bias)
         self.conv_pet = nn.Conv3d(in_channels, out_channels, kernel_size=kernel_size,
                                   stride=stride, padding=padding, bias=bias)
 
+        # torch.empty()用来返回一个没有初始化的 tensor
+        # nn.Parameter() 可以让一个 普通的tensor ==>> 变量不断学习的tensor
         self.w_mri = nn.Parameter(torch.empty((out_channels, out_channels)))
+        # 使用 凯明正态分布 初始化卷层参数，a是默认值
         nn.init.kaiming_uniform_(self.w_mri, a=math.sqrt(5))
         self.w_pet = nn.Parameter(torch.empty((out_channels, out_channels)))
         nn.init.kaiming_uniform_(self.w_pet, a=math.sqrt(5))
@@ -300,25 +307,35 @@ class Conv4d(nn.Module):
         self.out_channels = out_channels
 
     def forward(self, x):
-        x_mri = x[:,:,0,:,:,:]
+        # 没理解？？？
+        x_mri = x[:, :, 0, :, :, :]
         x_pet = x[:, :, 1, :, :, :]
 
+        # 获取卷积之后的feature
         h_mri = self.conv_mri(x_mri)
         h_pet = self.conv_pet(x_pet)
 
         # mri attend to pet
         # b,1,a,b,c
         b, c, x, y, z = h_mri.shape
+        # 获取从mri 对 pet的每个部分关注权重
         score_pet = torch.einsum('bcxyz,cd,bdxyz->bxyz', h_mri, self.w_mri, h_pet)#/self.out_channels**0.5
+        # 将获取的权重映射在 【0， 1】之间
         attn_pet = score_pet.view(b, -1).softmax(-1).view(b, 1, x, y, z)
+        # 将权重和pet feature乘机获取 value
         context_pet = attn_pet * h_pet
-        # mri attend to pet
+
+
+        # pet attend to mri
         score_mri = torch.einsum('bcxyz,cd,bdxyz->bxyz', h_pet, self.w_pet, h_mri)#/self.out_channels ** 0.5
+        # view()可以理解为展示形式，比如 x * x矩阵
         attn_mri = score_mri.view(b, -1).softmax(-1).view(b, 1, x, y, z)
         context_mri = attn_mri * h_mri
 
+        # 将获取的Attention value 和 原MRI feature map 加和，防止学习到的知识全是别人的。
         ret_mri = h_mri + context_pet
         ret_pet = h_pet + context_mri
+        # 把 ret_mri 和 ret_pet 从新压缩成4d的
         return torch.stack([ret_mri, ret_pet], 2)
 
 def conv3x3x3(in_planes, out_planes, stride=1):
@@ -379,6 +396,19 @@ class BatchNorm4by3(torch.nn.Module):
         out = out.view(n_batch, n_channel, n_figs, n_fig1, n_fig2, n_fig3)
         return out
 
+class BatchNorm4by3S(torch.nn.Module):
+    def __init__(self, channel_size):
+        super().__init__()
+        self.norm1 = torch.nn.BatchNorm3d(channel_size)
+        self.norm2 = torch.nn.BatchNorm3d(channel_size)
+
+    def forward(self, x):
+        x1 = x[:,:,0]
+        x2 = x[:,:,1]
+        x1 = self.norm1(x1)
+        x2 = self.norm2(x2)
+
+        return torch.stack([x1, x2], 2)
 
 class _MaxPool4d(nn.Module):
     def __init__(self, kernel_size=3, stride=2, padding=1):
@@ -447,12 +477,13 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3x3(inplanes, planes, stride)
-        self.bn1 = BatchNorm4by3(planes)
+        self.bn1 = BatchNorm4by3S(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3x3(planes, planes)
-        self.bn2 = BatchNorm4by3(planes)
+        self.bn2 = BatchNorm4by3S(planes)
         self.downsample = downsample
         self.stride = stride
+        self.dropout = nn.Dropout(0.2)
 
     def forward(self, x):
         residual = x
@@ -460,6 +491,7 @@ class BasicBlock(nn.Module):
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
+        out = self.dropout(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
@@ -468,6 +500,7 @@ class BasicBlock(nn.Module):
             residual = self.downsample(x)
         out += residual
         out = self.relu(out)
+        out = self.dropout(out)
 
         return out
 
@@ -497,7 +530,6 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], shortcut_type, stride=1)
 
         self.avgpool = AdaptiveAVGPool4by3((1, 1, 1))
-        self.dropout = nn.Dropout(0.5)
         self.classify = nn.Linear(512 * block.expansion, num_classes, bias=False)
 
         # for m in self.modules():
@@ -518,7 +550,7 @@ class ResNet(nn.Module):
                         stride=stride,
                         bias=False,
                     ),
-                    BatchNorm4by3(planes * block.expansion),
+                    BatchNorm4by3S(planes * block.expansion),
                 )
 
         layers = []
@@ -528,6 +560,7 @@ class ResNet(nn.Module):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
+
 
     # def get_cam(self, x_init_shape, fmap):
     #     x_init_shape = x_init_shape[2:]
@@ -550,7 +583,6 @@ class ResNet(nn.Module):
 
         out = self.avgpool(feature)
         out = out.view(out.size(0), -1)
-        out = self.dropout(out)
         cls = self.classify(out)
         return cls
 

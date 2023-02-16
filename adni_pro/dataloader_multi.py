@@ -33,7 +33,7 @@ class DataSet(Dataset):
         img2 = nibabel.load(img_path2).get_fdata()  # 读取数据
         img1 = img1.astype('float32')
         img2 = img2.astype('float32')
-        normalization = 'minmax'
+        normalization = 'median'
         if normalization == 'minmax':
             # 最小最大归一化
             img_max1 = img1.max()
@@ -75,11 +75,13 @@ class DataSet(Dataset):
     def __len__(self):
         return len(self.images)
 
+
 def load_data_multi(args, root_path, AD_dir, CN_dir, train=False):
     AD_data = DataSet(root_path, AD_dir)
     CN_data = DataSet(root_path, CN_dir)
+    # import ipdb;ipdb.set_trace()
     all_Dataset = AD_data + CN_data
-    all_loader = DataLoader(all_Dataset, batch_size=args.batch_size, shuffle=train, num_workers=16)
+    all_loader = DataLoader(all_Dataset, batch_size=args.batch_size, shuffle=train, num_workers=16, prefetch_factor=10)
     del all_Dataset
     gc.collect()
     return all_loader

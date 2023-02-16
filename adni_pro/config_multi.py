@@ -20,11 +20,11 @@ def get_args_multi():
 
 
     parser.add_argument('--train_root_path', type=str, help='Root path for train dataset',
-                        default='./multi_data_622/train/')
+                        default='./multi_data_0211/train/')
     parser.add_argument('--val_root_path', type=str, help='Root path for val dataset',
-                        default='./multi_data_622/val/')
+                        default='./multi_data_0211/val/')
     parser.add_argument('--test_root_path', type=str, help='Root path for test dataset',
-                        default='./multi_data_622/test/')
+                        default='./multi_data_0211/test/')
     parser.add_argument('--batch_size', type=int, help='batch_size of data', default=2)
     parser.add_argument('--nepoch', type=int, help='Total epoch num', default=100)
     #  0: mri 1: pet 2: multi
